@@ -269,35 +269,7 @@ def summarize_errors(logs: list) -> dict:
 
 ---
 
-## 🔧 Diff 驱动代码改良 (增删改补)
 
-### 痛点
-
-LLM 生成整段文件 → 易超长、合并冲突、上下文丢失。
-
-### 思路
-
-* 用结构化 diff（行号 / AST patch）描述变更。
-* 只提交增量修改 → 更易审阅、版本控制友好。
-* 结合 `reflect` 记录失败补丁，自动回滚。
-
-### 示例语法（人读友好伪格式）
-
-```diff
-@@ patch:patch_engine.py @@
-- def apply_patch(text, patch):
-+ def apply_patch(text, patch, validate=True):
-+     """Apply patch with optional validation for context drift."""
-      ...
-```
-
-未来扩展：
-
-* AST 层语义补丁；
-* 单测驱动验证；
-* 多代理代码审查。
-
----
 
 ## 👤 个体知识分布建模 & 学习预测
 
@@ -370,17 +342,6 @@ LLM 生成整段文件 → 易超长、合并冲突、上下文丢失。
 
 ---
 
-## 🧬 O 系列模型复现（研究向）
-
-> 非官方，仅作研究：构建轻量化 open 模型 pipeline，模拟“大模型 + 小专家模型”协作；评估在记忆蒸馏、策略迁移中的表现。
-
-研究方向：
-
-* 知识蒸馏：从大模型采样“反思+行动”对话，微调小模型。
-* 工具使用演示数据自动生成。
-* 学习曲线对比（有/无元认知）。
-
----
 
 ## 🧪 快速开始
 
@@ -493,14 +454,6 @@ print(result)
 
 欢迎 star、issue、PR，一起把“会学、会反思、会创造工具”的 GPT 智能体做起来！🚀
 
----
 
-# English Overview (Short)
-
-**GPT AutoBoot Agent** is a self-bootstrapping, meta-cognitive agent framework for LLMs. It learns from feedback, compresses long histories into layered memory, retrieves the right tool out of hundreds, and can *create new tools* when it detects repeated code patterns. It models user knowledge mastery, predicts likely confusion points in documents, and ships with an AI Office toolkit (memoing, formatting, slide generation, diff-based doc evolution). Experimental modules explore open, lightweight “O-style” multi-model orchestration and knowledge distillation.
-
-> See Chinese sections above for full details; English docs coming soon.
-
----
 
 \*\*下一步：\*\*告诉我你想采用哪个仓库名，我可以帮你生成 `pyproject.toml`、`requirements.txt`、基础目录结构脚本，或继续扩写 docs！
