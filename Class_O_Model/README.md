@@ -8,9 +8,7 @@
 
 该方案为gpt-O模型的实现。gpt可以自主决策分解任务，并且创建调度多个gpt去协作完成任务。过程中，gpt智能体可以动态管理记忆、调整任务、自我设计提示词、思考任务、构建代码工具并且执行代码、并且依靠外界环境反馈作出调整！
 
-![推理过程1](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/756fde895662453e85a3fe5dac447d8.png)
 
-![推理过程2](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/d7d52a34d7e4382b56df9f9cbd2e405.png)
 
 ## 核心功能亮点：
 
@@ -64,3 +62,9 @@ MCP/Function tools服务器负责提供模板提示词以及代码工具供gpt�
                             │    MCP 服务器集群       │
                             │ (代码存储 ＆ 部署 服务) │
                             └────────────────────────┘
+
+
+![推理过程1](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/756fde895662453e85a3fe5dac447d8.png)
+
+![推理过程2](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/d7d52a34d7e4382b56df9f9cbd2e405.png)
+
