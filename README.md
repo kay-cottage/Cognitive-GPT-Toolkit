@@ -235,8 +235,8 @@ app/
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourname/gpt-autoboot-agent.git
-cd gpt-autoboot-agent
+git clone https://github.com/kay-cottage/Cognitive-GPT-Toolkit
+cd Cognitive-GPT-Toolkit
 ```
 
 ### 2. 安装依赖
