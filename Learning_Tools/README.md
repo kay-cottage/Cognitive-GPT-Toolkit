@@ -5,6 +5,8 @@
 
 ## 🔁 元认知循环： & \<update\_goal>
 
+![study_tool](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/75dc414dde60063829cfd84f3defea8.png)
+
 ### 原理
 
 通过显式动作触发“自省”，将经验固化为结构化数据，而非依赖上下文残留。
