@@ -3,9 +3,10 @@
 
 ![ai_NOTE1](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/d27c1ce9a17a942c929942f53885390.png)
 
+![ai_NOTE](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/98222bdcb95a0a925f7fa66186366fd.png)
+
 ![ai_NOTE](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/932f061ceeb11a3c4e6d4dbd7e3cfce.png)
 
-![ai_NOTE](https://github.com/kay-cottage/Cognitive-GPT-Toolkit/blob/main/img/98222bdcb95a0a925f7fa66186366fd.png)
 
 ## 🧳 分层记忆系统
 
