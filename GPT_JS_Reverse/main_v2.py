@@ -1,33 +1,111 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-JSDecipher-GPT v7: AI-Powered JavaScript Reverse Engineering Assistant (Context-Aware Tools)
+!!!!!!!!!!!!!!!!!!!!!!!!!!LOGGING DEMO!!!!!!!!!!!!!!!!!!!!!!!!
 
-Description:
-This version introduces critical safeguards to prevent context window overflows and
-makes the AI agent smarter at handling large search results. It implements a
-"smart truncation" strategy, enhances the AI's core logic to react to it,
-and adds robust, structured logging for better traceability.
 
-Key Features v7:
-- Smart Truncation: The `find_code_by_keyword` tool now has a `max_results`
-  limit. If a search is too broad, it returns a summary object with the total
-  match count and a suggestion to refine the search, preventing context overflow.
-- Enhanced AI Strategy: The main system prompt is updated to teach the AI how
-  to handle truncated results, forcing it to refine its queries instead of
-  processing massive lists.
-- Structured Logging: Replaced all `print` statements with Python's `logging`
-  module for structured, leveled (INFO, WARN, ERROR) output.
-- Cooperative Tool Feedback: Tools now return a consistent JSON object with a
-  'status' field ('complete' or 'truncated'), making their output predictable
-  and easier for the AI to parse.
-- All previous features from v6 are retained and enhanced.
+Welcome to JSDecipher-GPT (True Context Shielding)!
+============================================================
+Enter the path to the JavaScript file to analyze: E:\code_new\David_Test\David_2025\David_new\tool_html\html\xhs.js
+2025-07-22 12:55:23,434 - [INFO] - JSAnalyzer initialized for E:\code_new\David_Test\David_2025\David_new\tool_html\html\xhs.js (28609 lines).
+What is your goal for this analysis? (e.g., 'Find the encryption key'): 研究一下X-S是如何生成的，我要完整的实现代码
+2025-07-22 12:55:31,665 - [INFO] - [Depth:0, Round:1] --- Preparing request...
+2025-07-22 12:55:31,674 - [INFO] - Estimated token count: 767
+2025-07-22 12:55:31,674 - [INFO] - Sending request to GPT... 
+2025-07-22 12:55:35,140 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:35,175 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:55:35,176 - [INFO] - AI Thought: To investigate how the 'X-S' value is generated, I must locate its generation logic within the codebase. A strategic point to start would be to search for occurrences of 'X-S', which could lead us to its generation function or usage context.
+2025-07-22 12:55:35,186 - [INFO] - Search for 'X-S' found 4 results.
+2025-07-22 12:55:35,186 - [INFO] - [Depth:0, Round:2] --- Preparing request...
+2025-07-22 12:55:35,188 - [INFO] - Estimated token count: 1362
+2025-07-22 12:55:35,189 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:37,636 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:37,638 - [INFO] - AI Action: extract_code_snippet
+2025-07-22 12:55:37,638 - [INFO] - AI Thought: The search results show multiple occurrences of 'X-Sign' and 'X-S-Common', suggesting they might be part of the same hashing or signature generation process. A function `encryptToken` is notably close to one of these mentions, suggesting a relationship. To confirm and understand how 'X-S' is specifi...
+2025-07-22 12:55:37,639 - [INFO] - [Depth:0, Round:3] --- Preparing request...
+2025-07-22 12:55:37,641 - [INFO] - Estimated token count: 1663
+2025-07-22 12:55:37,641 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:41,429 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:41,431 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:55:41,431 - [INFO] - AI Thought: The `encryptToken` function appears to be involved in generating some kind of token, using a combination of URL parts and parameters, coupled with a constant value `s = "WSUDD"`. The outcome seems to involve a transformation such as a hash or signature with `f()` being called on concatenated string ...
+2025-07-22 12:55:41,448 - [WARNING] - Search for 'function f' yielded 35 results, exceeding the limit of 25. Returning a truncated list.
+2025-07-22 12:55:41,449 - [INFO] - Result was truncated. Generating a concise feedback summary for the AI to prevent context overflow.
+2025-07-22 12:55:41,450 - [INFO] - [Depth:0, Round:4] --- Preparing request...
+2025-07-22 12:55:41,453 - [INFO] - Estimated token count: 1915
+2025-07-22 12:55:41,454 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:44,295 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:44,299 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:55:44,300 - [INFO] - AI Thought: The search for 'function f' was too broad, likely because 'f' could be an obfuscated or commonly used function. To refine my search, I should search for assignments to 'f', possibly in the form of 'f =' followed by a function declaration or function assignment.
+2025-07-22 12:55:44,316 - [INFO] - Search for 'f\s*=\s*function' found 9 results.
+2025-07-22 12:55:44,316 - [INFO] - [Depth:0, Round:5] --- Preparing request...
+2025-07-22 12:55:44,322 - [INFO] - Estimated token count: 2929
+2025-07-22 12:55:44,322 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:46,715 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:46,720 - [INFO] - AI Action: extract_code_snippet
+2025-07-22 12:55:46,720 - [INFO] - AI Thought: The function `f` is defined at line 6735. This function might be a utility for generating signatures or hashes, which is 
+why it was used in `encryptToken`. To confirm its functionality, I'll extract and review the code for this function definition and its context.
+2025-07-22 12:55:46,720 - [INFO] - [Depth:0, Round:6] --- Preparing request...
+2025-07-22 12:55:46,731 - [INFO] - Estimated token count: 3225
+2025-07-22 12:55:46,731 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:52,241 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:52,243 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:55:52,244 - [INFO] - AI Thought: The extracted code shows that `f` is defined as an anonymous function at line 6735, and it seems to involve device and browser capability checks rather than directly related to hashing or signature generation. Thus, this might not be the `f` function used in `encryptToken`. Given the obfuscated natu...
+2025-07-22 12:55:52,260 - [INFO] - Search for 'encryptToken\s*\([^)]*f\(' found 0 results.
+2025-07-22 12:55:52,260 - [INFO] - [Depth:0, Round:7] --- Preparing request...
+2025-07-22 12:55:52,273 - [INFO] - Estimated token count: 3446
+2025-07-22 12:55:52,274 - [INFO] - Sending request to GPT...
+2025-07-22 12:55:58,164 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:55:58,166 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:55:58,166 - [INFO] - AI Thought: The last search was designed to find invocations of `encryptToken` where `f` is explicitly utilized for some transformation. However, it yielded no results, suggesting that `f` may be an imported or globally defined function, or its usage in `encryptToken` is more indirect. I'll explore other possib...
+2025-07-22 12:55:58,184 - [INFO] - Search for 'var f\s*=\s*r\(' found 6 results.
+2025-07-22 12:55:58,186 - [INFO] - [Depth:0, Round:8] --- Preparing request...
+2025-07-22 12:55:58,196 - [INFO] - Estimated token count: 4313
+2025-07-22 12:55:58,197 - [INFO] - Sending request to GPT...
+2025-07-22 12:56:10,019 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:56:10,066 - [INFO] - AI Action: extract_code_snippet
+2025-07-22 12:56:10,067 - [INFO] - AI Thought: The search results indicate several instances where `f` is defined as `r(<module_id>)`, suggesting it is imported from modules. The assignments to `f` at different locations are potentially the utility or cryptographic function used in `encryptToken`. Line 18073 (`var f = r(31547)`) and its context ...
+2025-07-22 12:56:10,069 - [INFO] - [Depth:0, Round:9] --- Preparing request...
+2025-07-22 12:56:10,077 - [INFO] - Estimated token count: 4615
+2025-07-22 12:56:10,077 - [INFO] - Sending request to GPT...
+2025-07-22 12:56:23,311 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:56:23,314 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:56:23,314 - [INFO] - AI Thought: The code snippet indicates that `f` is indeed a module `r(31547)` and is used here with `f._(e)`, likely pointing to a method or utility function within that module. This may be related to type-checking or conversion functions typically used in payloads, such as `isError`. However, this doesn't dire...
+2025-07-22 12:56:23,333 - [WARNING] - Search for 'f\._' yielded 34 results, exceeding the limit of 25. Returning a truncated list.
+2025-07-22 12:56:23,334 - [INFO] - Result was truncated. Generating a concise feedback summary for the AI to prevent context overflow.
+2025-07-22 12:56:23,335 - [INFO] - [Depth:0, Round:10] --- Preparing request...
+2025-07-22 12:56:23,352 - [INFO] - Estimated token count: 4886
+2025-07-22 12:56:23,353 - [INFO] - Sending request to GPT...
+2025-07-22 12:56:27,026 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:56:27,028 - [INFO] - AI Action: get_object_keys
+2025-07-22 12:56:27,029 - [INFO] - AI Thought: The search for `f._` yielded too many results, suggesting it is widely used. This means `f` likely provides multiple utilities or methods. To narrow this down and find specifically what methods are offered by `f`, I'll inspect the keys or methods under `f` by examining the object structure. This wil...
+2025-07-22 12:56:27,031 - [INFO] - [Depth:0, Round:11] --- Preparing request...
+2025-07-22 12:56:27,045 - [INFO] - Estimated token count: 5072
+2025-07-22 12:56:27,047 - [INFO] - Sending request to GPT...
+2025-07-22 12:56:33,460 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:56:33,464 - [INFO] - AI Action: find_code_by_keyword
+2025-07-22 12:56:33,465 - [INFO] - AI Thought: The attempt to directly inspect `f` failed, possibly due to the variable being dynamically assigned or out of the current analysis scope. However, considering the previous explorations and that we have explored all connections to `f`, re-evaluate assumption: Since the generation logic is 
+not apparen...
+2025-07-22 12:56:33,480 - [INFO] - Search for 'f\.(hash|sign|encode|generate)' found 0 results.
+2025-07-22 12:56:33,483 - [INFO] - [Depth:0, Round:12] --- Preparing request...
+2025-07-22 12:56:33,496 - [INFO] - Estimated token count: 5303
+2025-07-22 12:56:33,496 - [INFO] - Sending request to GPT...
+2025-07-22 12:56:38,503 - [INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-22 12:56:38,505 - [INFO] - AI Action: ask_human_for_help
+2025-07-22 12:56:38,505 - [INFO] - AI Thought: Finding no results for typical cryptographic or string manipulation methods within `f`, it appears I've exhausted direct 
+keyword searches using partial identifiers. It may be the case that instead of 'f' directly, another alias or function used within `encryptToken` encapsulates the logic necessary ...
 
-Dependencies:
-- pip install openai>=1.3.0 requests tree-sitter tree-sitter-javascript tiktoken
+==================== HUMAN ASSISTANCE REQUIRED ====================
+AI's Question: Could you provide deeper details on code dynamics or specific X or S related features in `encryptToken` function, such as key variables derived obscure dynamically, further insights appreciated for closer procedural accuracy.
 
-Environment Variables:
-- OPENAI_API_KEY=your_openai_api_key
+--- Code Context ---
+The current utility `f` leverages obfuscated procedures and lacks clear entry point related transformations consistent generation 'X-S'. Includes indirect pathways or dependencies not fully enumerated.
+--------------------
+Your Answer >
+
+
+
+
+
 """
 import json
 import copy
@@ -55,8 +133,7 @@ logging.basicConfig(
 
 # ----------------- 初始化OpenAI客户端 -----------------
 # It's recommended to use environment variables for API keys.
-# ----------------- 初始化OpenAI客户端 -----------------
-client = OpenAI(api_key='sk-EA')
+client = OpenAI(api_key='skPEA')
 # 模型配置
 
 
@@ -225,13 +302,13 @@ CONFIG = {
 
 PROMPTS = {
     "MAIN_SYSTEM_PROMPT": """
-You are 'JSDecipher-GPT v7', an AI assistant for JavaScript reverse engineering. Your goal is to fulfill the user's <OVERARCHING_GOAL> with surgical precision.
+You are 'JSDecipher-GPT v8', an AI assistant for JavaScript reverse engineering. Your goal is to fulfill the user's <OVERARCHING_GOAL> with surgical precision.
 
 **Core Directive: AVOID CONTEXT OVERFLOW. BE STRATEGIC.**
 
 **Token Efficiency Strategy: Search -> Inspect -> Refine**
 1.  **Broad Search:** Start with `find_code_by_keyword` using a simple string (e.g., 'encrypt', 'login') to find initial points of interest.
-2.  **Handling Truncated Results:** If the tool returns a `{"status": "truncated", ...}` response, your search was too broad. **DO NOT PROCEED.** You MUST refine your search. Use the `suggestion` and the initial results to create a more specific keyword or regex. For example, if you searched for `login` and it was truncated, try `function login` or `LoginRequest`.
+2.  **Handling Truncated Results:** If the tool feedback shows `{"status": "truncated", ...}`, your search was too broad. The full list of results will NOT be provided to save context space. You MUST refine your search using the provided `suggestion`. Do not ask for the full list. Instead, create a more specific keyword or regex. For example, if you searched for `login` and it was truncated, try `function login` or `LoginRequest`.
 3.  **Inspect Objects:** If your search reveals an important-looking object (e.g., a utility object `p`), use `get_object_keys` to see what functions it contains. This is a cheap way to discover function names.
 4.  **Refine Search:** Use the keys you discovered to perform a more targeted search with `find_code_by_keyword`. Use the `is_regex` parameter if you need to find obfuscated code (e.g., `keyword: "p\\\\.lz\\s*=\\s*function"`, `is_regex: true`).
 5.  **Extract & Analyze:** Once you have high confidence you've located the correct function, use `extract_code_snippet` to get its full body for analysis or execution.
@@ -372,29 +449,21 @@ def process_ai_response(response_json, history, shared_state, depth):
                 params.get("is_regex", False), 
                 params.get("context_lines", 2)
             )
-            # Log based on the result status
-            if result_data.get("status") == "truncated":
-                logging.info(f"Tool Result: Found {result_data.get('total_matches')} matches for '{keyword}', returning a truncated list.")
-            else:
-                 logging.info(f"Tool Result: Found {result_data.get('total_matches')} matches for '{keyword}'.")
         
         elif action == "get_object_keys":
             var_name, line_num = params.get("variable_name"), params.get("line_number")
             if not all([var_name, line_num]): raise ValueError("`variable_name` and `line_number` are required.")
             result_data = analyzer.get_object_keys(var_name, int(line_num))
-            logging.info(f"Tool Result: {result_data}")
 
         elif action == "extract_code_snippet":
             start, end = params.get("start_line"), params.get("end_line")
             if not all([start, end]): raise ValueError("`start_line` and `end_line` are required.")
             result_data = analyzer.extract_code_snippet(int(start), int(end))
-            logging.info(f"Tool Result: Extracted {len(result_data.splitlines())} lines from {start}-{end}.")
 
         elif action == "execute_js_snippet":
             code, context = params.get("code_snippet"), params.get("context_vars")
             if not code: raise ValueError("`code_snippet` is required.")
             result_data = analyzer.execute_js_snippet(code, context)
-            logging.info(f"Tool Result: JS execution status: {result_data.get('status')}")
 
         elif action == "ask_human_for_help":
             question = params.get("question", "I'm stuck. Can you help?")
@@ -416,8 +485,23 @@ def process_ai_response(response_json, history, shared_state, depth):
         result_data = {"error_details": str(e)}
         logging.error(f"Error executing action '{action}': {e}", exc_info=True)
 
+    # --- CONTEXT SHIELDING LOGIC ---
+    # The full result is always saved in the step history for logging/debugging.
     shared_state['step_history'].append({"id": step_id, "action": action, "params": params, "status": status, "result": result_data})
-    feedback = f"""<SYSTEM_FEEDBACK><action_receipt><id>{step_id}</id><action>{action}</action><status>{status}</status><result>{json.dumps(result_data, ensure_ascii=False, default=str)}</result></action_receipt></SYSTEM_FEEDBACK>"""
+
+    feedback_result = result_data
+    # If the result from the tool was truncated, create a concise summary for the AI's context.
+    if isinstance(result_data, dict) and result_data.get("status") == "truncated":
+        logging.info("Result was truncated. Generating a concise feedback summary for the AI to prevent context overflow.")
+        # This new object *omits* the verbose 'results' list.
+        feedback_result = {
+            "status": "truncated",
+            "total_matches": result_data.get("total_matches"),
+            "suggestion": result_data.get("suggestion", "Results were truncated. Please refine your search.")
+        }
+    
+    # The feedback to the AI now uses the potentially summarized 'feedback_result'.
+    feedback = f"""<SYSTEM_FEEDBACK><action_receipt><id>{step_id}</id><action>{action}</action><status>{status}</status><result>{json.dumps(feedback_result, ensure_ascii=False, default=str)}</result></action_receipt></SYSTEM_FEEDBACK>"""
     history.append({"role": "user", "content": feedback})
     return None, True
 
@@ -425,7 +509,7 @@ def process_ai_response(response_json, history, shared_state, depth):
 
 def main():
     """Main function to run the agent from the command line."""
-    print("Welcome to JSDecipher-GPT v7 (Context-Aware Tools Edition)!")
+    print("Welcome to JSDecipher-GPT v8 (True Context Shielding)!")
     print("="*60)
     
     file_path = input("Enter the path to the JavaScript file to analyze: ").strip()
