@@ -30,7 +30,7 @@ except ImportError:
 # Initialize OpenAI client
 try:
     client = OpenAI(
-        api_key='sk-249f96f3dad64e7e910e1dd845e45c77',  # 如果未配置环境变量，这里可以替换为你的 API Key
+        api_key='s7',  # 如果未配置环境变量，这里可以替换为你的 API Key
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
     client.models.list()  # Test connection
@@ -131,8 +131,8 @@ MAIN_SYSTEM_PROMPT = """你是 'CoordinatorGPT'，一个具备自主规划、执
 ALLOWED_ACTIONS = {"call_tool", "execute_code", "edit_code", "generate_handler", "invoke_gpt", "summarize_memory", "seek_human_assistance", "final_answer"}
 
 # Google Custom Search API configuration (replace with your API key and CX or set env variables)
-GOOGLE_API_KEY = "AIzaSyD4cNl9lpDVTZNp81DpzyowTapBnKUImWs"
-GOOGLE_CX = "56c05bde5895040a2"
+GOOGLE_API_KEY = "s"
+GOOGLE_CX = "52"
 GOOGLE_SEARCH_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 def get_website_content(url: str):
