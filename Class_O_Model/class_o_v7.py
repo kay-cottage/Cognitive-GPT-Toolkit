@@ -1,6 +1,360 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+import json
+import os
+import pickle
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Tuple
 
+import faiss  # type: ignore
+import numpy as np
+from openai import OpenAI
+from rank_bm25 import BM25Okapi
+import importlib.util
+import inspect
+
+#####################################################################
+# 扫描 .py 并加载工具
+#####################################################################
+#####################################################################
+# 扫描 .py 并加载工具（返回 func 与源文件路径）
+#####################################################################
+def load_all_tools(tools_dir: str) -> dict[str, tuple[callable, Path]]:
+    """
+    扫描目录下所有 .py 文件，动态导入模块，
+    并将其导出的函数注册为工具。返回:
+      { tool_name: (function, source_file_path) }
+    """
+    tools: dict[str, tuple[callable, Path]] = {}
+    tools_path = Path(tools_dir)
+    for py_file in tools_path.glob("*.py"):
+        if py_file.name == "__init__.py":
+            continue
+
+        module_name = py_file.stem
+        spec = importlib.util.spec_from_file_location(module_name, str(py_file))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore
+
+        # 按 __all__ 导出优先
+        if hasattr(module, "__all__") and module.__all__:
+            for name in module.__all__:
+                obj = getattr(module, name, None)
+                if callable(obj):
+                    tools[name] = (obj, py_file)
+        else:
+            # 否则，所有属于本模块的顶级函数
+            funcs = [
+                (fname, fobj)
+                for fname, fobj in inspect.getmembers(module, inspect.isfunction)
+                if fobj.__module__ == module_name
+            ]
+            if len(funcs) == 1:
+                fname, fobj = funcs[0]
+                tools[module_name] = (fobj, py_file)
+            else:
+                for fname, fobj in funcs:
+                    tools[fname] = (fobj, py_file)
+
+    return tools
+
+
+#####################################################################
+# Configuration dataclasses
+#####################################################################
+@dataclass
+class SelectorConfig:
+    """工具选择器的配置"""
+    tools_dir: str = r"E:\ol"
+    embed_model: str = "text-embedding-3-small"
+    embed_batch: int = 8
+    vector_cache: str = r"E:\cors.pkl"
+    faiss_index_file: str = r"E:\coddex.faiss"
+    # BM25索引的缓存文件
+    bm25_index_file: str = r"E:\ndex.pkl"
+    
+    recall_top_n: int = 25  # 向量和BM25各自召回的数量
+    stage2_top_n: int = 15  # 融合排序后，送入LLM的数量
+    final_top_k: Tuple[int, int] = (5, 10)  # 最终返回工具数量的(最小, 最大)范围
+    openai_client: OpenAI | None = None
+
+
+
+def _embed_texts(texts: List[str], client: OpenAI, model: str, batch: int) -> np.ndarray:
+    """批量嵌入文本并返回numpy数组。"""
+    vectors = []
+    for i in range(0, len(texts), batch):
+        response = client.embeddings.create(input=texts[i : i + batch], model=model)
+        vectors.extend([e.embedding for e in response.data])
+    return np.array(vectors, dtype="float32")
+
+def _cosine_search(index: faiss.IndexFlatIP, query_vec: np.ndarray, k: int) -> List[int]:
+    """在FAISS索引中执行余弦相似度搜索。"""
+    faiss.normalize_L2(query_vec)
+    D, I = index.search(query_vec, k)
+    return I[0][I[0] != -1].tolist()
+
+def _simple_tokenizer(text: str) -> List[str]:
+    """一个简单的分词器，用于BM25。"""
+    # 这里可以替换为更复杂的分词库如 jieba
+    return re.findall(r'\b\w+\b', text.lower())
+
+
+#####################################################################
+# Core class
+#####################################################################
+class MCPToolSelector:
+    def __init__(self, **kwargs):
+        self.cfg = SelectorConfig(**kwargs)
+        self.client = self.cfg.openai_client or OpenAI()
+
+        # ——— 用 load_all_tools 加载函数及路径 ———
+        tools_map = load_all_tools(self.cfg.tools_dir)
+        self.func_map: Dict[str, callable] = {name: fn for name, (fn, _) in tools_map.items()}
+
+        # ——— 构建 manifests 列表，并带上 _path —— 
+        self.manifests: List[Dict] = []
+        for name, (fn, path) in tools_map.items():
+            sig = ""
+            try:
+                sig = str(inspect.signature(fn))
+            except Exception:
+                pass
+            desc = inspect.getdoc(fn) or ""
+            self.manifests.append({
+                "name": name,
+                "description": desc,
+                "params": sig,
+                "_path": str(path)    # ← 关键：给出源文件路径，供缓存检查使用
+            })
+
+        self.manifest_map: Dict[str, Dict] = {m['name']: m for m in self.manifests}
+        self._build_or_load_indices()
+
+    def recall_tools(
+        self,
+        agent_thought: str,
+        user_message: str,
+        min_k: int | None = None,
+        max_k: int | None = None,
+    ) -> List[Dict]:
+        # —— 与原来完全相同 —— 
+        max_k = max_k if max_k is not None else self.cfg.final_top_k[1]
+        query_text = f"Agent thought: {agent_thought}\nUser message: {user_message}"
+        
+        k_for_search = min(self.cfg.recall_top_n, len(self.manifests))
+        if k_for_search == 0:
+            return []
+
+        q_vec = _embed_texts([query_text], self.client, self.cfg.embed_model, 1)
+        vector_indices = _cosine_search(self.faiss_index, q_vec, k_for_search)
+        vector_candidates = [self.manifests[i] for i in vector_indices]
+
+        tokenized_query = _simple_tokenizer(query_text)
+        bm25_candidates = self.bm25.get_top_n(tokenized_query, self.manifests, n=k_for_search)
+
+        fused_candidates = self._reciprocal_rank_fusion([vector_candidates, bm25_candidates])
+        top_fused = fused_candidates[:self.cfg.stage2_top_n]
+
+        final_tools = self._gpt_select(top_fused, agent_thought, user_message)
+        if not final_tools:
+            final_tools = top_fused
+
+        return final_tools[:max_k]
+    
+
+    def _build_or_load_indices(self):
+        """构建或加载所有需要的索引（FAISS 和 BM25）。"""
+        os.makedirs(Path(self.cfg.vector_cache).parent, exist_ok=True)
+        
+        # 检查所有缓存是否都存在且新鲜
+        is_fresh = self._cache_is_fresh()
+        if is_fresh:
+            try:
+                print("Loading all indices from cache.")
+                with open(self.cfg.vector_cache, "rb") as f:
+                    self.tool_vectors = pickle.load(f)
+                self.faiss_index = faiss.read_index(self.cfg.faiss_index_file)
+                with open(self.cfg.bm25_index_file, "rb") as f:
+                    self.bm25 = pickle.load(f)
+                
+                # 确保缓存和当前manifests匹配
+                if len(self.tool_vectors) != len(self.manifests):
+                    print("Cache is stale (manifest count mismatch). Rebuilding...")
+                    self._build_indices()
+                else:
+                    print("All indices loaded successfully.")
+                return
+            except (FileNotFoundError, pickle.UnpicklingError) as e:
+                print(f"Failed to load from cache ({e}). Rebuilding...")
+        
+        self._build_indices()
+
+    def _build_indices(self):
+        """实际执行所有索引的构建逻辑。"""
+        print("Building new indices (FAISS and BM25)...")
+        
+        # 构建通用语料库
+        corpus = [f"{m['name']}: {m.get('description', '')}" for m in self.manifests]
+
+        # 1. 构建FAISS索引
+        self.tool_vectors = _embed_texts(corpus, self.client, self.cfg.embed_model, self.cfg.embed_batch)
+        faiss.normalize_L2(self.tool_vectors)
+        self.faiss_index = faiss.IndexFlatIP(self.tool_vectors.shape[1])
+        self.faiss_index.add(self.tool_vectors)
+
+        # 2. 构建BM25索引
+        tokenized_corpus = [_simple_tokenizer(doc) for doc in corpus]
+        self.bm25 = BM25Okapi(tokenized_corpus)
+
+        # 保存所有索引到缓存
+        print(f"Saving new caches...")
+        with open(self.cfg.vector_cache, "wb") as f:
+            pickle.dump(self.tool_vectors, f)
+        faiss.write_index(self.faiss_index, self.cfg.faiss_index_file)
+        with open(self.cfg.bm25_index_file, "wb") as f:
+            pickle.dump(self.bm25, f)
+        print("Indices built and saved.")
+
+    def _cache_is_fresh(self) -> bool:
+        """检查所有缓存文件是否都比manifests新。"""
+        cache_files = [self.cfg.vector_cache, self.cfg.faiss_index_file, self.cfg.bm25_index_file]
+        if not all(Path(f).exists() for f in cache_files):
+            return False
+            
+        # 以最旧的缓存文件时间为基准
+        min_cache_mtime = min(Path(f).stat().st_mtime for f in cache_files)
+        
+        for m in self.manifests:
+            if Path(m["_path"]).stat().st_mtime > min_cache_mtime:
+                return False
+        return True
+    
+    def _reciprocal_rank_fusion(self, ranked_lists: List[List[Dict]], k=60) -> List[Dict]:
+        """执行倒数排名融合。"""
+        scores: Dict[str, float] = {}
+        
+        for rank_list in ranked_lists:
+            for i, doc in enumerate(rank_list):
+                doc_name = doc['name']
+                if doc_name not in scores:
+                    scores[doc_name] = 0.0
+                scores[doc_name] += 1.0 / (k + i)
+
+        # 按分数排序
+        sorted_names = sorted(scores.keys(), key=lambda name: scores[name], reverse=True)
+        return [self.manifest_map[name] for name in sorted_names]
+
+    def _gpt_select(self, candidates: List[Dict], agent_thought: str, user_message: str) -> List[Dict]:
+        """使用LLM进行最终决策。"""
+        if not candidates:
+            return []
+
+        system_msg = (
+            "You are an intelligent tool-routing assistant. Your task is to analyze the user's request "
+            "and the agent's thought process to select the most relevant tools from the provided list. "
+            "You MUST respond with a JSON object containing a single key: 'selected_tools', which holds a list of tool names. "
+            "For example: {\"selected_tools\": [\"tool_name_1\", \"tool_name_2\"]}. "
+            "为确保让任务顺利完成你可以适当多选择2-3个工具备用"
+            #"If no tools are relevant, return an empty list: {\"selected_tools\": []}."
+        )
+        tools_text = "\n".join(f"* {m['name']}: {m.get('description', '')}" for m in candidates)
+        user_prompt = (
+            f"## Agent thought\n{agent_thought}\n\n"
+            f"## User message\n{user_message}\n\n"
+            f"## Candidate tools\n{tools_text}"
+        )
+        
+        try:
+            chat = self.client.chat.completions.create(
+                model="o4-mini",
+                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": user_prompt}],
+                #temperature=0,
+                response_format={"type": "json_object"},
+            )
+            raw = chat.choices[0].message.content.strip()
+            # print(raw)
+            
+            print("\n--- GPT-4o-mini Decision ---")
+            print(f"RESPONSE:\n{raw}")
+            print("--------------------------\n")
+
+            data = json.loads(raw)
+            names = data.get("selected_tools", [])
+            print(names)
+            print(type(raw),type(names))
+
+            
+            if not isinstance(names, list):
+                print(f"Warning: GPT returned 'selected_tools' but it was not a list. Got: {type(names)}")
+                return []
+                
+            # 保持从candidates中获取的顺序，而不是names的顺序
+            return [m for m in candidates if m["name"] in names]
+
+        except Exception as e:
+            print(f"An error occurred during GPT selection: {e}")
+            return []
+
+client = OpenAI(api_key="sM20A") 
+selector = MCPToolSelector(openai_client=client)
+
+###############################################################
+
+import importlib.util
+import inspect
+from pathlib import Path
+
+def load_all_tools(tools_dir: str) -> dict[str, callable]:
+    """
+    扫描目录下所有 .py 文件，动态导入模块，
+    并将模块中导出的函数注册为工具：
+      1) 如果模块定义了 __all__，则按 __all__ 中的名字注册；
+      2) 否则，如果模块中恰好有一个顶级函数，就把它注册，key 为模块名；
+      3) 如有多个函数，也会按函数名逐个注册（可选）。
+    """
+    tools: dict[str, callable] = {}
+    tools_path = Path(tools_dir)
+    for py_file in tools_path.glob("*.py"):
+        if py_file.name == "__init__.py":
+            continue
+
+        module_name = py_file.stem
+        spec = importlib.util.spec_from_file_location(module_name, str(py_file))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore
+
+        # 方式一：按 __all__ 导出
+        if hasattr(module, "__all__") and module.__all__:
+            for name in module.__all__:
+                obj = getattr(module, name, None)
+                if callable(obj):
+                    tools[name] = obj
+
+        else:
+            # 模块中所有顶级函数
+            funcs = [
+                (name, obj)
+                for name, obj in inspect.getmembers(module, inspect.isfunction)
+                if obj.__module__ == module_name
+            ]
+            if len(funcs) == 1:
+                # 只有一个函数，注册为 module_name → func
+                func_name, func_obj = funcs[0]
+                tools[module_name] = func_obj
+            else:
+                # 多个函数时，按函数名注册
+                for func_name, func_obj in funcs:
+                    tools[func_name] = func_obj
+
+    return tools
+
+
+
+##########################################
 
 
 import json
@@ -17,6 +371,7 @@ import zipfile
 from bs4 import BeautifulSoup   # Requires `pip install bs4` for HTML parsing
 import inspect # 引入 inspect 模块
 
+
 try:
     from openai import OpenAI
 except ImportError:
@@ -25,7 +380,7 @@ except ImportError:
 # Initialize OpenAI client
 try:
     client = OpenAI(
-        api_key='s7',  # 如果未配置环境变量，这里可以替换为你的 API Key
+        api_key='s77',  # 如果未配置环境变量，这里可以替换为你的 API Key
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
     client.models.list()  # Test connection
@@ -127,11 +482,13 @@ MAIN_SYSTEM_PROMPT = """你是 'CoordinatorGPT'，一个具备自主规划、执
 开始执行吧。
 """
 
+
+
 ALLOWED_ACTIONS = {"call_tool", "execute_code", "edit_code", "generate_handler", "invoke_gpt", "summarize_memory", "seek_human_assistance", "final_answer"}
 
 # Google Custom Search API configuration (replace with your API key and CX or set env variables)
 GOOGLE_API_KEY = "As"
-GOOGLE_CX = "5a2"
+GOOGLE_CX = "50a2"
 GOOGLE_SEARCH_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 def get_website_content(url: str):
@@ -283,18 +640,67 @@ def process_ai_response(response_json, history, shared_state, depth, session_id)
                 raise ValueError("'id' 是 call_tool 的必需字段。")
             tool_name = params.get("tool_name")
             tool_params = params.get("tool_params", {})
-            
-            # 第一阶段：如果模型不知道用什么工具，它会请求工具列表
+
+            # —— 第一阶段：模型请求工具列表 —— 
             if tool_name is None:
-                print("\033[36m[System] AI 请求工具列表...\033[0m")
+                print("\033[36m[System] AI 请求工具列表，调用 MCP 推荐器…\033[0m")
+
+                # 1) 从 step_history 中提取前两轮的 thought
+                all_thoughts = [step['thought'] for step in shared_state.get('step_history', [])]
+                last_two = all_thoughts[-2:]  # 如果不足两条，就拿全部
+                agent_thought_input = " ".join(last_two).strip()
+
+                # 2) 如果还是空，就降级为“用户最新需求”（history 中第一条 user 消息）
+                if not agent_thought_input:
+                    agent_thought_input = history[1]['content'] if len(history) > 1 else ""
+
+                # 3) 拿到最新的 user_message
+                user_message_input = ""
+                for msg in reversed(history):
+                    if msg['role'] == 'user':
+                        user_message_input = msg['content']
+                        break
+
+                # 4) 调用 MCP 推荐器
+                picked = selector.recall_tools(
+                    agent_thought=agent_thought_input,
+                    user_message=user_message_input,
+                )
+                # 存储推荐结果
+                shared_state.setdefault('variables', {})[f"{call_id}_recs"] = picked
+
+                # 5) 合并常驻 + 推荐，生成新的可用工具
+                new_tools = {}
+                # 先加载常驻工具
+                for name in shared_state['common_tools']:
+                    if name in shared_state['all_tools']:
+                        new_tools[name] = shared_state['all_tools'][name]
+                # 再从 picked 列表（List[Dict]）中取 name
+                for tool_manifest in picked:
+                    name = tool_manifest["name"]
+                    if name in shared_state['all_tools']:
+                        new_tools[name] = shared_state['all_tools'][name]
+                shared_state['tools'] = new_tools
+                print(f"\033[36m[System] 更新可用工具列表: {list(new_tools.keys())}\033[0m")
+
+                # 6) 注入 <SYSTEM_TOOL_PROMPT>，让 LLM 看到新的推荐列表
+                instr = (
+                    f"<SYSTEM_TOOL_PROMPT>\n"
+                    f"  <instruction>请选择下列可用工具，并在下一次响应中填写 tool_name 和 tool_params：</instruction>\n"
+                    f"{format_tool_list(shared_state['tools'])}\n"
+                    f"  <call_id>{call_id}</call_id>\n"
+                    f"</SYSTEM_TOOL_PROMPT>"
+                )
+                history.append({"role": "system", "content": instr})
+
+                # 等待 LLM 指定具体工具
                 return {"type": "REQUEST_TOOL_LIST", "id": call_id}, True
-            
-            # 第二阶段：执行指定的工具
+
+            # —— 第二阶段：执行指定的工具 —— 
             print(f"\033[36m[System] 正在执行工具: {tool_name}...\033[0m")
             func = shared_state['tools'].get(tool_name)
             if not func:
                 raise ValueError(f"未找到名为 '{tool_name}' 的工具。")
-            
             result = func(**tool_params)
             shared_state.setdefault('variables', {})[step_id] = result
 
@@ -517,17 +923,6 @@ def run(session_id, messages, shared_state, depth=0):
         result, cont = process_ai_response(response_json, history, shared_state, depth, session_id)
         save_session(session_id, history, shared_state)
 
-        if isinstance(result, dict) and result.get("type")=="REQUEST_TOOL_LIST":
-            call_id = result["id"]
-            instr = (
-                f"<SYSTEM_TOOL_PROMPT>\n"
-                f"  <instruction>请从以下列表中选择一个工具，并在下一次响应中通过 'call_tool' 动作并填写 'tool_name' 和 'tool_params' 来调用它。</instruction>\n"
-                f"  <call_id>{call_id}</call_id>\n"
-                f"{format_tool_list(shared_state['tools'])}\n"
-                f"</SYSTEM_TOOL_PROMPT>"
-            )
-            history.append({"role":"system","content":instr})
-            continue
 
         if not cont:
             return result, history, shared_state
@@ -610,12 +1005,20 @@ def main():
             'tools': {}
         }
         # 绑定工具，确保 state 引用正确
-        tools = {
-            #'google_search': google_search,
-            'http_get': get_website_content,
-            'memorize': lambda content: memorize_tool(shared_state, content)
-        }
-        shared_state['tools'] = tools
+        tools_dir = r"E:\code_new\David_Test\David_2025\David_new\tool_html\html\testttt\tool" 
+        all_tools = load_all_tools(tools_dir)
+        print(all_tools)
+        # 1) 全量备份
+        shared_state['all_tools'] = all_tools.copy()
+
+        # 2) 定义 3–5 常驻工具列表
+        shared_state['common_tools'] = ['tool_02_calculate_average_score']
+        # 3) 初始只加载常驻工具到 shared_state['tools']
+        shared_state['tools'] = {
+            name: all_tools[name]
+            for name in shared_state['common_tools']
+            if name in all_tools
+        }        
 
         goal = args.task or f"处理文件 {args.file}"
         init_content = f"<OVERARCHING_GOAL>{goal}</OVERARCHING_GOAL>"
